@@ -6,11 +6,11 @@ import (
 	"log"
 )
 
-var rooms = make(map[string]Room)
+var rooms = make(map[string]*Room)
 
 type Room struct {
-	RoomId  string
-	Clients []Client
+	RoomId    string
+	ClientIds []string
 
 	/**
 	Example:
@@ -25,27 +25,27 @@ type Room struct {
 func AddRoom(room Room) {
 	formattedStruct, _ := json.Marshal(room)
 	log.Println("Adding new room: " + string(formattedStruct))
-	rooms[room.RoomId] = room
+	rooms[room.RoomId] = &room
 
 }
 
-//func AddClientToRoom(c Client) {
-//	rooms[c.RoomId].Clients.ap
-//	rooms[room.RoomId] = room
-//
-//}
+func AddClientToRoom(c Client) {
+
+	rooms[c.RoomId].ClientIds = append(rooms[c.RoomId].ClientIds, c.ClientId)
+
+}
 
 // Attempt to get a room from the cache, if it doesnt exist return nil
 func GetRoom(RoomId string) *Room {
 	Room, ok := rooms[RoomId]
 	if ok {
-		return &Room
+		return Room
 	} else {
 		return nil
 	}
 }
 
-func GetRooms() map[string]Room {
+func GetRooms() map[string]*Room {
 	return rooms
 }
 
