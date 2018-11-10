@@ -29,6 +29,12 @@ func AddRoom(room Room) {
 
 }
 
+//func AddClientToRoom(c Client) {
+//	rooms[c.RoomId].Clients.ap
+//	rooms[room.RoomId] = room
+//
+//}
+
 // Attempt to get a room from the cache, if it doesnt exist return nil
 func GetRoom(RoomId string) *Room {
 	Room, ok := rooms[RoomId]

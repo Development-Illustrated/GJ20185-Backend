@@ -35,14 +35,13 @@ func main() {
 }
 
 func sendAction(w http.ResponseWriter, r *http.Request) {
-
 	decoder := json.NewDecoder(r.Body)
 	var a Action
 	err := decoder.Decode(&a)
 	if err != nil {
 		panic(err)
 	}
-
+	fmt.Println(a.ActionKey, a.ClientId)
 	PerformAction(a)
 
 	// if AddClient(t) {
@@ -61,6 +60,8 @@ func RegisterClient(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println(t.ClientId)
 
 	if AddClient(t) {
 		fmt.Fprintln(w, "Registration for client: "+t.ClientId+" complete")

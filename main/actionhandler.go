@@ -9,13 +9,13 @@ import (
 // var clients = make(map[string]Client)
 
 type Action struct {
-	clientId string
-	actionKey string
+	ClientId  string
+	ActionKey string
 
 	/**
 	Example:
 	{"ClientID":"cl1234",
-	"actionKey":"Up"
+	"ActionKey":"Up"
 	}
 	*/
 
@@ -23,15 +23,14 @@ type Action struct {
 
 func PerformAction(action Action) {
 	// Only add client if the room has been preregistered
-	if GetClient(action.clientId) != nil {
+	if GetClient(action.ClientId) != nil {
 		// clients[client.ClientId] = client
 		// formattedStruct, _ := json.Marshal(client)
 		// log.Println("Adding new client: " + string(formattedStruct))
-		fmt.Println("perform an action" + action.actionKey) 
-	// 	return true
-	// } else {
-	// 	return false
+		fmt.Println("perform an action" + action.ActionKey)
+		// 	return true
+		// } else {
+		// 	return false
 	}
 
 }
-
