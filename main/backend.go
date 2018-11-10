@@ -28,7 +28,6 @@ func main() {
 	router.HandleFunc("/rooms", ReturnRooms).Methods("GET")
 	router.HandleFunc("/sendAction", sendAction).Methods("POST")
 	router.HandleFunc("/clients", ReturnClients).Methods("GET")
-	router.HandleFunc("/broadcast", SendBroadcast).Methods("POST")
 
 	go func() {
 		log.Fatal(http.ListenAndServe(":6969", router))
@@ -46,17 +45,6 @@ func main() {
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
-}
-func SendBroadcast(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	var a Action
-	err := decoder.Decode(&a)
-	if err != nil {
-		panic(err)
-	}
-
-	log.Printf("Sending new message:")
-	broadcast <- a
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
