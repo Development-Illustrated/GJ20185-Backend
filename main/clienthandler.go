@@ -9,9 +9,8 @@ import (
 var clients = make(map[string]Client)
 
 type Client struct {
-	ClientId   string
-	ClientType string
-	RoomId     string
+	ClientId string
+	RoomId   string
 
 	/**
 	Example:
@@ -33,11 +32,16 @@ func AddClient(client Client) bool {
 	} else {
 		return false
 	}
-
 }
 
-func GetClient(ClientId string) Client {
-	return clients[ClientId]
+// Attempt to get a Client from the cache, if it doesnt exist return nil
+func GetClient(ClientId string) *Client {
+	Client, ok := clients[ClientId]
+	if ok {
+		return &Client
+	} else {
+		return nil
+	}
 }
 
 // Print all clients

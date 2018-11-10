@@ -8,6 +8,20 @@ import (
 	"net/http"
 )
 
+type Command struct {
+	ClientId string
+	Command  string
+
+	/**
+	Example:
+	{"ClientID":"cl1234",
+	"ClientType":"controller",
+	"RoomId":"rm1234"
+	}
+	*/
+
+}
+
 func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
