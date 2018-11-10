@@ -8,7 +8,7 @@ import (
 
 func main() {
 	ip := "localhost"
-	port := 5000
+	port := 5001
 
 	addr := net.UDPAddr{Port: port, IP: net.ParseIP(ip)}
 
