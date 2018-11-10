@@ -26,11 +26,7 @@ func main() {
 
 	b := []byte("some string")
 
-	cc, wrerr := nil
-
-	for {
-		cc, wrerr := conn.Write(b)
-	}
+	cc, wrerr := conn.Write(b)
 
 	if wrerr != nil {
 		fmt.Printf("conn.Write() error: %s\n", wrerr)
