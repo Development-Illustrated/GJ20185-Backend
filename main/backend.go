@@ -12,19 +12,15 @@ func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", Index)
-	router.HandleFunc("/register", Register).Methods("POST")
-	//router.HandleFunc("/test", test).Methods("POST")
+	router.HandleFunc("/register/client", RegisterClient).Methods("POST")
+	router.HandleFunc("/register/room", RegisterRoom).Methods("POST")
+	router.HandleFunc("/rooms", ReturnRooms).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":6969", router))
 }
 
-func LogObject(input Client) {
-	formattedStruct, _ := json.Marshal(input)
-	log.Println("Logging object: " + string(formattedStruct))
-}
-
 // Endpoints!
-func Register(w http.ResponseWriter, r *http.Request) {
+func RegisterClient(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
 	var t Client
@@ -32,16 +28,35 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	LogObject(t)
 
-	AddClient(t)
-	fmt.Fprintln(w, "Registration for "+t.ClientId+" complete")
+	if AddClient(t) {
+		fmt.Fprintln(w, "Registration for client: "+t.ClientId+" complete")
+	} else {
+		fmt.Fprintln(w, "Couldn't register client: "+t.ClientId)
+	}
+}
 
-	// Show current registered clients
-	PrintClients()
+func RegisterRoom(w http.ResponseWriter, r *http.Request) {
+
+	decoder := json.NewDecoder(r.Body)
+	var t Room
+	err := decoder.Decode(&t)
+	if err != nil {
+		panic(err)
+	}
+
+	AddRoom(t)
+	fmt.Fprintln(w, "Registration for room: "+t.RoomId+" complete")
 
 }
 
 func Index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Welcome!")
+}
+
+func ReturnRooms(w http.ResponseWriter, r *http.Request) {
+
+	formattedStruct, _ := json.Marshal(GetRooms())
+	fmt.Fprintln(w, string(formattedStruct))
+
 }

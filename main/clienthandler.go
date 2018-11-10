@@ -1,6 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+)
 
 var clients = make(map[string]Client)
 
@@ -19,8 +23,16 @@ type Client struct {
 
 }
 
-func AddClient(client Client) {
-	clients[client.ClientId] = client
+func AddClient(client Client) bool {
+	// Only add client if the room has been preregistered
+	if GetRoom(client.RoomId) != nil {
+		clients[client.ClientId] = client
+		formattedStruct, _ := json.Marshal(client)
+		log.Println("Adding new client: " + string(formattedStruct))
+		return true
+	} else {
+		return false
+	}
 
 }
 
