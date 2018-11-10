@@ -46,7 +46,7 @@ func GetClient(ClientId string) *Client {
 	}
 }
 
-func GetClients() map[string]*Client {
+func GetClients() map[string]Client {
 	return clients
 }
 

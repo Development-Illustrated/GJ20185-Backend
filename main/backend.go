@@ -30,15 +30,20 @@ func main() {
 	router.HandleFunc("/register/room", RegisterRoom).Methods("POST")
 	router.HandleFunc("/rooms", ReturnRooms).Methods("GET")
 	router.HandleFunc("/sendAction", sendAction).Methods("POST")
+	router.HandleFunc("/clients", ReturnClients).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":6969", router))
+}
+func ReturnClients(w http.ResponseWriter, r *http.Request) {
+	formattedStruct, _ := json.Marshal(GetClients())
+	fmt.Fprintln(w, string(formattedStruct))
 }
 
 func sendAction(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var a Action
 	err := decoder.Decode(&a)
-	if err != nil {	
+	if err != nil {
 		panic(err)
 	}
 	PerformAction(a)
