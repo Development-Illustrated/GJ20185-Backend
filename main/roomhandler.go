@@ -29,10 +29,19 @@ func AddRoom(room Room) {
 
 }
 
-func AddClientToRoom(c Client) {
+func AddClientToRoom(c Client) bool {
+
+	for _, b := range rooms[c.RoomId].ClientIds {
+		if b == c.ClientId {
+			log.Print("Player is being added to a room they are already in. Dickwads writing the front end fucked up.")
+			return false
+		}
+	}
 
 	rooms[c.RoomId].ClientIds = append(rooms[c.RoomId].ClientIds, c.ClientId)
-
+	client_broadcast <- c
+	log.Print("Client: " + c.ClientId + " added to room")
+	return true
 }
 
 // Attempt to get a room from the cache, if it doesnt exist return nil

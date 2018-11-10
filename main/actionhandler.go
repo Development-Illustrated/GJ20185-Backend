@@ -9,31 +9,26 @@ import (
 // var clients = make(map[string]Client)
 
 type Action struct {
-	ClientId  string
-	ActionKey string
+	ClientId string
+	Command  string
 
 	/**
 	Example:
 	{"ClientID":"cl1234",
-	"ActionKey":"Up"
+	"Command":"Up"
 	}
 	*/
 
 }
 
-func PerformAction(action Action) {
+func PerformAction(action Action) bool {
 	// Only add client if the room has been preregistered
 	if GetClient(action.ClientId) != nil {
-		log.Println("Client: " + action.ClientId + " performs action: " + action.ActionKey)
+		log.Println("Client: " + action.ClientId + " performs action: " + action.Command)
+		action_broadcast <- action
+		return true
 	} else {
 		log.Println("Client: " + action.ClientId + " doesn't exist.")
+		return false
 	}
-
-	broadcast <- action
-
 }
-
-//TO DO
-// func SendActionToGameRoom( ){
-
-// }
