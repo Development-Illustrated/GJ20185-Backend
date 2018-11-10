@@ -2,8 +2,8 @@ package main
 
 import (
 	// "encoding/json"
-	"fmt"
-	// "log"
+	// "fmt"
+	"log"
 )
 
 // var clients = make(map[string]Client)
@@ -24,13 +24,14 @@ type Action struct {
 func PerformAction(action Action) {
 	// Only add client if the room has been preregistered
 	if GetClient(action.ClientId) != nil {
-		// clients[client.ClientId] = client
-		// formattedStruct, _ := json.Marshal(client)
-		// log.Println("Adding new client: " + string(formattedStruct))
-		fmt.Println("perform an action" + action.ActionKey)
-		// 	return true
-		// } else {
-		// 	return false
+		log.Println("Client: " + action.ClientId + " performs action: " + action.ActionKey)
+	} else {
+		log.Println("Client: " + action.ClientId + " doesn't exist.")
 	}
 
 }
+
+//TO DO
+// func SendActionToGameRoom( ){
+
+// }
