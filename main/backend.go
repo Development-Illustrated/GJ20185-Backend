@@ -3,9 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/googollee/go-socket.io"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"log"
 	"net/http"
+	// "time"
+	"github.com/gorilla/websocket"
 )
 
 type Command struct {
@@ -22,6 +26,23 @@ type Command struct {
 
 }
 
+var clients2 = make(map[*websocket.Conn]bool) // connected clients2
+var broadcast = make(chan Message)           // broadcast channel
+
+// Configure the upgrader
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
+// Message object
+type Message struct {
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Message  string `json:"message"`
+}
+
 func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
@@ -32,8 +53,166 @@ func main() {
 	router.HandleFunc("/sendAction", sendAction).Methods("POST")
 	router.HandleFunc("/clients", ReturnClients).Methods("GET")
 
-	log.Fatal(http.ListenAndServe(":6969", router))
+	go func() {
+		log.Fatal(http.ListenAndServe(":6969", router))
+	}()
+
+	// go func() {
+	// 	StartSocketServer()
+	// }()
+
+	// log.Print("This should run after listen finish")
+
+	// // Dont end the program
+	// for {
+	// 	time.Sleep(9999999)
+	// }
+
+	// Configure websocket route
+	http.HandleFunc("/ws", handleConnections)
+
+	// Start listening for incoming chat messages
+	go handleMessages()
+
+	// Start the server on localhost port 8000 and log any errors
+	log.Println("http server started on :8000")
+	err := http.ListenAndServe(":8000", nil)
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
+	}
 }
+
+func handleConnections(w http.ResponseWriter, r *http.Request) {
+	// Upgrade initial GET request to a websocket
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("error %v", err)
+		return
+	}
+	// Make sure we close the connection when the function returns
+	defer ws.Close()
+
+	// Register our new client
+	clients2[ws] = true
+
+	// Send it out to every client that is currently connected
+	for client := range clients2 {
+		err := client.WriteJSON("hi Luke")
+		if err != nil {
+			log.Printf("error: %v", err)
+			client.Close()
+			delete(clients2, client)
+		}
+	}
+
+	for {
+		var msg Message
+		// Read in a new message as JSON and map it to a Message object
+		err := ws.ReadJSON(&msg)
+		if err != nil {
+			log.Printf("error: %v", err)
+			delete(clients2, ws)
+			break
+		}
+		// Send the newly received message to the broadcast channel
+		broadcast <- msg
+	}
+}
+
+func handleMessages() {
+	for {
+		// Grab the next message from the broadcast channel
+		msg := <-broadcast
+		// Send it out to every client that is currently connected
+		for client := range clients2 {
+			err := client.WriteJSON(msg)
+			if err != nil {
+				log.Printf("error: %v", err)
+				client.Close()
+				delete(clients2, client)
+			}
+		}
+	}
+}
+
+func NewSocket(so socketio.Socket) {
+
+	so.Join("chat")
+
+	so.Emit("chat", "hello message")
+	log.Println("on connection")
+	so.On("chat", func(msg string) {
+		log.Println("recieved message", msg)
+		so.Emit("chat", msg)
+	})
+	// Socket.io acknowledgement example
+	// The return type may vary depending on whether you will return
+	// For this example it is "string" type
+	so.On("chat message with ack", func(msg string) string {
+		return msg
+	})
+	so.On("disconnection", func() {
+		log.Println("disconnected from chat")
+	})
+}
+
+func StartSocketServer() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("{\"hello\": \"world\"}"))
+	})
+
+	// cors.Default() setup the middleware with default options being
+	// all origins accepted with simple methods (GET, POST). See
+	// documentation below for more options.
+	server, err := socketio.NewServer(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	server.On("connection", func(so socketio.Socket) {
+
+		so.Join("chat")
+
+		so.Emit("chat", "hello message")
+		log.Println("on connection")
+		so.On("chat", func(msg string) {
+			log.Println("recieved message", msg)
+			so.Emit("chat", msg)
+		})
+		// Socket.io acknowledgement example
+		// The return type may vary depending on whether you will return
+		// For this example it is "string" type
+		so.On("chat message with ack", func(msg string) string {
+			return msg
+		})
+		so.On("disconnection", func() {
+			log.Println("disconnected from chat")
+		})
+	})
+	server.On("error", func(so socketio.Socket, err error) {
+		log.Println("error:", err)
+	})
+
+	mux.Handle("/socket.io/", server)
+	mux.Handle("/assets", http.FileServer(http.Dir("./assets")))
+
+	// provide default cors to the mux
+	handler := cors.Default().Handler(mux)
+
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowCredentials: false,
+	})
+
+	// decorate existing handler with cors functionality set in c
+	handler = c.Handler(handler)
+
+	log.Println("Serving at localhost:5000...")
+	log.Fatal(http.ListenAndServe(":5000", handler))
+
+}
+
 func ReturnClients(w http.ResponseWriter, r *http.Request) {
 	formattedStruct, _ := json.Marshal(GetClients())
 	fmt.Fprintln(w, string(formattedStruct))
