@@ -29,8 +29,27 @@ func main() {
 	router.HandleFunc("/register/client", RegisterClient).Methods("POST")
 	router.HandleFunc("/register/room", RegisterRoom).Methods("POST")
 	router.HandleFunc("/rooms", ReturnRooms).Methods("GET")
+	router.HandleFunc("/sendAction", sendAction).Methods("POST")
 
 	log.Fatal(http.ListenAndServe(":6969", router))
+}
+
+func sendAction(w http.ResponseWriter, r *http.Request) {
+
+	decoder := json.NewDecoder(r.Body)
+	var a Action
+	err := decoder.Decode(&a)
+	if err != nil {
+		panic(err)
+	}
+
+	PerformAction(a)
+
+	// if AddClient(t) {
+	// 	fmt.Fprintln(w, "Registration for client: "+t.ClientId+" complete")
+	// } else {
+	// 	fmt.Fprintln(w, "Couldn't register client: "+t.ClientId)
+	// }
 }
 
 // Endpoints!
