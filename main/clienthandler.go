@@ -9,8 +9,9 @@ import (
 var clients = make(map[string]Client)
 
 type Client struct {
-	ClientId string
-	RoomId   string
+	ClientId   string
+	RoomId     string
+	ClientName string
 
 	/**
 	Example:
@@ -25,9 +26,10 @@ type Client struct {
 func AddClient(client Client) bool {
 	// Only add client if the room has been preregistered
 	if GetRoom(client.RoomId) != nil {
-		clients[client.ClientId] = client
 		formattedStruct, _ := json.Marshal(client)
 		log.Println("Adding new client: " + string(formattedStruct))
+		clients[client.ClientId] = client
+		AddClientToRoom(client)
 		return true
 	} else {
 		return false
@@ -42,6 +44,10 @@ func GetClient(ClientId string) *Client {
 	} else {
 		return nil
 	}
+}
+
+func GetClients() map[string]*Client {
+	return clients
 }
 
 // Print all clients
