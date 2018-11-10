@@ -20,6 +20,7 @@ func main() {
 
 func bleh(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Welcome!")
+	fmt.Println("Incoming")
 }
 
 func TodoIndex(w http.ResponseWriter, r *http.Request) {
