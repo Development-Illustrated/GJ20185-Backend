@@ -29,6 +29,8 @@ func PerformAction(action Action) {
 		log.Println("Client: " + action.ClientId + " doesn't exist.")
 	}
 
+	broadcast <- action
+
 }
 
 //TO DO
