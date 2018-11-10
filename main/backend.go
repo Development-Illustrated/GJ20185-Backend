@@ -38,17 +38,10 @@ func sendAction(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var a Action
 	err := decoder.Decode(&a)
-	if err != nil {
+	if err != nil {	
 		panic(err)
 	}
-	fmt.Println(a.ActionKey, a.ClientId)
 	PerformAction(a)
-
-	// if AddClient(t) {
-	// 	fmt.Fprintln(w, "Registration for client: "+t.ClientId+" complete")
-	// } else {
-	// 	fmt.Fprintln(w, "Couldn't register client: "+t.ClientId)
-	// }
 }
 
 // Endpoints!
