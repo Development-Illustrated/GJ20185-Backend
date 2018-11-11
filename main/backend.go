@@ -29,6 +29,7 @@ func main() {
 	router.HandleFunc("/rooms", ReturnRooms).Methods("GET")
 	router.HandleFunc("/sendAction", sendAction).Methods("POST")
 	router.HandleFunc("/clients", ReturnClients).Methods("GET")
+	router.HandleFunc("/connections", ReturnConnections).Methods("GET")
 
 	go func() {
 		log.Print("Running http server on localhost:6969")
@@ -75,9 +76,21 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			delete(client_connections, msg.ClientId)
 			break
 		}
-		client_connections[msg.ClientId] = ws
-		// Send the newly received message to the action_broadcast channel
-		PerformAction(msg)
+
+		// If clientid - register client connection
+		if msg.ClientId != "" {
+			client_connections[msg.ClientId] = ws
+			// if client sends command - forward command
+			if msg.Command != "" {
+				PerformAction(msg)
+			}
+			// If room id and no client id then register room
+		} else if msg.RoomId != "" {
+			log.Print("Registering room connection")
+			AddRoom(Room{RoomId: msg.RoomId})
+			client_connections[msg.RoomId] = ws
+		}
+
 	}
 }
 
@@ -118,6 +131,13 @@ func handleClientMessages() {
 			}
 		}
 	}
+}
+
+func ReturnConnections(w http.ResponseWriter, r *http.Request) {
+	formattedStruct, _ := json.Marshal(client_connections)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(formattedStruct))
+
 }
 
 func ReturnClients(w http.ResponseWriter, r *http.Request) {
