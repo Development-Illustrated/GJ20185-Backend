@@ -9,9 +9,9 @@ import (
 	"net/http"
 )
 
-var clients2 = make(map[*websocket.Conn]bool) // connected clients2
-var action_broadcast = make(chan Action)      // action_broadcast channel
-var client_broadcast = make(chan Client)      // action_broadcast channel
+var client_connections = make(map[*websocket.Conn]bool) // connected client_connections
+var action_broadcast = make(chan Action)                // action_broadcast channel
+var client_broadcast = make(chan Client)                // action_broadcast channel
 
 // Configure the upgrader
 var upgrader = websocket.Upgrader{
@@ -65,14 +65,14 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	defer ws.Close()
 
 	// Register our new client
-	clients2[ws] = true
+	client_connections[ws] = true
 
 	// Send it out to every client that is currently connected
-	for client := range clients2 {
+	for client := range client_connections {
 		if err != nil {
 			log.Printf("error: %v", err)
 			client.Close()
-			delete(clients2, client)
+			delete(client_connections, client)
 		}
 	}
 
@@ -82,7 +82,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		err := ws.ReadJSON(&msg)
 		if err != nil {
 			log.Printf("error: %v", err)
-			delete(clients2, ws)
+			delete(client_connections, ws)
 			break
 		}
 		// Send the newly received message to the action_broadcast channel
@@ -95,12 +95,12 @@ func handleMessages() {
 		// Grab the next message from the action_broadcast channel
 		msg := <-action_broadcast
 		// Send it out to every client that is currently connected
-		for client := range clients2 {
+		for client := range client_connections {
 			err := client.WriteJSON(msg)
 			if err != nil {
 				log.Printf("error: %v", err)
 				client.Close()
-				delete(clients2, client)
+				delete(client_connections, client)
 			}
 		}
 	}
@@ -111,12 +111,12 @@ func handleClientMessages() {
 		// Grab the next message from the action_broadcast channel
 		msg := <-client_broadcast
 		// Send it out to every client that is currently connected
-		for client := range clients2 {
+		for client := range client_connections {
 			err := client.WriteJSON(msg)
 			if err != nil {
 				log.Printf("error: %v", err)
 				client.Close()
-				delete(clients2, client)
+				delete(client_connections, client)
 			}
 		}
 	}
