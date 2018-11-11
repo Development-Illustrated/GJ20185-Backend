@@ -29,8 +29,8 @@ func AddClient(client Client) bool {
 		formattedStruct, _ := json.Marshal(client)
 		log.Println("Adding new client: " + string(formattedStruct))
 		clients[client.ClientId] = client
-		AddClientToRoom(client)
-		return true
+		out := AddClientToRoom(client)
+		return out
 	} else {
 		return false
 	}

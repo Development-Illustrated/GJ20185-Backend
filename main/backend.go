@@ -10,7 +10,8 @@ import (
 )
 
 var clients2 = make(map[*websocket.Conn]bool) // connected clients2
-var broadcast = make(chan Action)             // broadcast channel
+var action_broadcast = make(chan Action)      // action_broadcast channel
+var client_broadcast = make(chan Client)      // action_broadcast channel
 
 // Configure the upgrader
 var upgrader = websocket.Upgrader{
@@ -30,14 +31,18 @@ func main() {
 	router.HandleFunc("/clients", ReturnClients).Methods("GET")
 
 	go func() {
+		log.Print("Running http server on localhost:6969")
 		log.Fatal(http.ListenAndServe(":6969", router))
 	}()
 
 	// Configure websocket route
 	http.HandleFunc("/ws", handleConnections)
 
-	// Start listening for incoming chat messages
+	// Start listening for incoming actions
 	go handleMessages()
+
+	// Start listening for new clients wanting to join a room
+	go handleClientMessages()
 
 	// Start the server on localhost port 8000 and log any errors
 	log.Println("http server started on :8000")
@@ -45,6 +50,8 @@ func main() {
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
+
+	//AddRoom(Room{"RoomId":"rm1"})
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +69,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 	// Send it out to every client that is currently connected
 	for client := range clients2 {
-		err := client.WriteJSON("hi Luke")
 		if err != nil {
 			log.Printf("error: %v", err)
 			client.Close()
@@ -79,15 +85,31 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			delete(clients2, ws)
 			break
 		}
-		// Send the newly received message to the broadcast channel
-		broadcast <- msg
+		// Send the newly received message to the action_broadcast channel
+		action_broadcast <- msg
 	}
 }
 
 func handleMessages() {
 	for {
-		// Grab the next message from the broadcast channel
-		msg := <-broadcast
+		// Grab the next message from the action_broadcast channel
+		msg := <-action_broadcast
+		// Send it out to every client that is currently connected
+		for client := range clients2 {
+			err := client.WriteJSON(msg)
+			if err != nil {
+				log.Printf("error: %v", err)
+				client.Close()
+				delete(clients2, client)
+			}
+		}
+	}
+}
+
+func handleClientMessages() {
+	for {
+		// Grab the next message from the action_broadcast channel
+		msg := <-client_broadcast
 		// Send it out to every client that is currently connected
 		for client := range clients2 {
 			err := client.WriteJSON(msg)
@@ -101,8 +123,9 @@ func handleMessages() {
 }
 
 func ReturnClients(w http.ResponseWriter, r *http.Request) {
+	log.Print("Returning clients")
 	formattedStruct, _ := json.Marshal(GetClients())
-	fmt.Fprintln(w, string(formattedStruct))
+	fmt.Fprintln(w, string(formattedStruct), http.StatusOK)
 }
 
 func sendAction(w http.ResponseWriter, r *http.Request) {
@@ -112,8 +135,12 @@ func sendAction(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	PerformAction(a)
-
+	out := PerformAction(a)
+	if out == true {
+		fmt.Fprint(w, "this shit hot right now", http.StatusOK)
+	} else {
+		fmt.Fprint(w, "That client don't exist yo", http.StatusBadRequest)
+	}
 }
 
 // Endpoints!
@@ -129,9 +156,9 @@ func RegisterClient(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(t.ClientId)
 
 	if AddClient(t) {
-		fmt.Fprintln(w, "Registration for client: "+t.ClientId+" complete")
+		fmt.Fprintln(w, "Registration for client: "+t.ClientId+" complete", http.StatusOK)
 	} else {
-		fmt.Fprintln(w, "Couldn't register client: "+t.ClientId)
+		fmt.Fprintln(w, "Couldn't register client: "+t.ClientId, http.StatusBadRequest)
 	}
 }
 
@@ -145,12 +172,12 @@ func RegisterRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	AddRoom(t)
-	fmt.Fprintln(w, "Registration for room: "+t.RoomId+" complete")
+	fmt.Fprintln(w, "Registration for room: "+t.RoomId+" complete", http.StatusOK)
 
 }
 
 func Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Welcome!")
+	fmt.Fprintln(w, "Welcome! Version 1")
 }
 
 func ReturnRooms(w http.ResponseWriter, r *http.Request) {
