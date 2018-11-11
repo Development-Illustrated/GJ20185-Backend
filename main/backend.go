@@ -9,9 +9,9 @@ import (
 	"net/http"
 )
 
-var clients2 = make(map[*websocket.Conn]bool) // connected clients2
-var action_broadcast = make(chan Action)      // action_broadcast channel
-var client_broadcast = make(chan Client)      // action_broadcast channel
+var client_connections = make(map[string]*websocket.Conn) // connected client_connections
+var action_broadcast = make(chan Action)                  // action_broadcast channel
+var client_broadcast = make(chan Client)                  // action_broadcast channel
 
 // Configure the upgrader
 var upgrader = websocket.Upgrader{
@@ -39,7 +39,7 @@ func main() {
 	http.HandleFunc("/ws", handleConnections)
 
 	// Start listening for incoming actions
-	go handleMessages()
+	go handleActionMessages()
 
 	// Start listening for new clients wanting to join a room
 	go handleClientMessages()
@@ -55,6 +55,7 @@ func main() {
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
+	log.Print("Handling connection")
 	// Upgrade initial GET request to a websocket
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -64,44 +65,38 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	// Make sure we close the connection when the function returns
 	defer ws.Close()
 
-	// Register our new client
-	clients2[ws] = true
-
-	// Send it out to every client that is currently connected
-	for client := range clients2 {
-		if err != nil {
-			log.Printf("error: %v", err)
-			client.Close()
-			delete(clients2, client)
-		}
-	}
-
 	for {
 		var msg Action
 		// Read in a new message as JSON and map it to a Message object
 		err := ws.ReadJSON(&msg)
+
 		if err != nil {
 			log.Printf("error: %v", err)
-			delete(clients2, ws)
+			delete(client_connections, msg.ClientId)
 			break
 		}
+		client_connections[msg.ClientId] = ws
 		// Send the newly received message to the action_broadcast channel
-		action_broadcast <- msg
+		PerformAction(msg)
 	}
 }
 
-func handleMessages() {
+func handleActionMessages() {
 	for {
 		// Grab the next message from the action_broadcast channel
 		msg := <-action_broadcast
-		// Send it out to every client that is currently connected
-		for client := range clients2 {
-			err := client.WriteJSON(msg)
-			if err != nil {
-				log.Printf("error: %v", err)
-				client.Close()
-				delete(clients2, client)
+		// Send it out to every conn that is currently connected
+		for conn_id, conn := range client_connections {
+			if msg.RoomId == conn_id {
+				err := conn.WriteJSON(msg)
+				if err != nil {
+					log.Printf("error: %v", err)
+					conn.Close()
+					delete(client_connections, conn_id)
+				}
+
 			}
+
 		}
 	}
 }
@@ -110,13 +105,16 @@ func handleClientMessages() {
 	for {
 		// Grab the next message from the action_broadcast channel
 		msg := <-client_broadcast
+
 		// Send it out to every client that is currently connected
-		for client := range clients2 {
-			err := client.WriteJSON(msg)
-			if err != nil {
-				log.Printf("error: %v", err)
-				client.Close()
-				delete(clients2, client)
+		for conn_id, conn := range client_connections {
+			if msg.RoomId == conn_id {
+				err := conn.WriteJSON(msg)
+				if err != nil {
+					log.Printf("error: %v", err)
+					conn.Close()
+					delete(client_connections, conn_id)
+				}
 			}
 		}
 	}
@@ -137,9 +135,11 @@ func sendAction(w http.ResponseWriter, r *http.Request) {
 	}
 	out := PerformAction(a)
 	if out == true {
-		fmt.Fprint(w, "this shit hot right now", http.StatusOK)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Action sent"))
 	} else {
-		fmt.Fprint(w, "That client don't exist yo", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Client doesn't exist, or client isn't in room"))
 	}
 }
 
@@ -156,9 +156,12 @@ func RegisterClient(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(t.ClientId)
 
 	if AddClient(t) {
-		fmt.Fprintln(w, "Registration for client: "+t.ClientId+" complete", http.StatusOK)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Registration for client: " + t.ClientId + " complete"))
 	} else {
-		fmt.Fprintln(w, "Couldn't register client: "+t.ClientId, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Can't add client: " + t.ClientId + " to room " + t.RoomId + " because room doesn't exist!"))
+
 	}
 }
 
@@ -172,12 +175,13 @@ func RegisterRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	AddRoom(t)
-	fmt.Fprintln(w, "Registration for room: "+t.RoomId+" complete", http.StatusOK)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Registration for room: " + t.RoomId + " complete"))
 
 }
 
 func Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Welcome! Version 1")
+	w.Write([]byte("Hey there partner"))
 }
 
 func ReturnRooms(w http.ResponseWriter, r *http.Request) {

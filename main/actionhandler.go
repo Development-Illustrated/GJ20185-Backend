@@ -11,6 +11,7 @@ import (
 type Action struct {
 	ClientId string
 	Command  string
+	RoomId   string
 
 	/**
 	Example:
@@ -22,13 +23,15 @@ type Action struct {
 }
 
 func PerformAction(action Action) bool {
+	log.Print("Performing action")
 	// Only add client if the room has been preregistered
-	if GetClient(action.ClientId) != nil {
+	client := GetClient(action.ClientId)
+	if client != nil && action.RoomId == client.RoomId {
 		log.Println("Client: " + action.ClientId + " performs action: " + action.Command)
 		action_broadcast <- action
 		return true
 	} else {
-		log.Println("Client: " + action.ClientId + " doesn't exist.")
+		log.Println("Client: " + action.ClientId + " doesn't exist. Or client isn't in room " + action.RoomId)
 		return false
 	}
 }
