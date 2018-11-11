@@ -177,7 +177,7 @@ func RegisterRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 func Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Welcome!")
+	fmt.Fprintln(w, "Welcome! Version 1")
 }
 
 func ReturnRooms(w http.ResponseWriter, r *http.Request) {
