@@ -9,9 +9,9 @@ import (
 	"net/http"
 )
 
-var client_connections = make(map[*websocket.Conn]bool) // connected client_connections
-var action_broadcast = make(chan Action)                // action_broadcast channel
-var client_broadcast = make(chan Client)                // action_broadcast channel
+var client_connections = make(map[string]*websocket.Conn) // connected client_connections
+var action_broadcast = make(chan Action)                  // action_broadcast channel
+var client_broadcast = make(chan Client)                  // action_broadcast channel
 
 // Configure the upgrader
 var upgrader = websocket.Upgrader{
@@ -55,6 +55,7 @@ func main() {
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
+	log.Print("Handling connection")
 	// Upgrade initial GET request to a websocket
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -64,29 +65,19 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	// Make sure we close the connection when the function returns
 	defer ws.Close()
 
-	// Register our new client
-	client_connections[ws] = true
-
-	// Send it out to every client that is currently connected
-	for client := range client_connections {
-		if err != nil {
-			log.Printf("error: %v", err)
-			client.Close()
-			delete(client_connections, client)
-		}
-	}
-
 	for {
 		var msg Action
 		// Read in a new message as JSON and map it to a Message object
 		err := ws.ReadJSON(&msg)
+
 		if err != nil {
 			log.Printf("error: %v", err)
-			delete(client_connections, ws)
+			delete(client_connections, msg.ClientId)
 			break
 		}
+		client_connections[msg.ClientId] = ws
 		// Send the newly received message to the action_broadcast channel
-		action_broadcast <- msg
+		PerformAction(msg)
 	}
 }
 
@@ -94,14 +85,18 @@ func handleActionMessages() {
 	for {
 		// Grab the next message from the action_broadcast channel
 		msg := <-action_broadcast
-		// Send it out to every client that is currently connected
-		for client := range client_connections {
-			err := client.WriteJSON(msg)
-			if err != nil {
-				log.Printf("error: %v", err)
-				client.Close()
-				delete(client_connections, client)
+		// Send it out to every conn that is currently connected
+		for conn_id, conn := range client_connections {
+			if msg.RoomId == conn_id {
+				err := conn.WriteJSON(msg)
+				if err != nil {
+					log.Printf("error: %v", err)
+					conn.Close()
+					delete(client_connections, conn_id)
+				}
+
 			}
+
 		}
 	}
 }
@@ -110,13 +105,16 @@ func handleClientMessages() {
 	for {
 		// Grab the next message from the action_broadcast channel
 		msg := <-client_broadcast
+
 		// Send it out to every client that is currently connected
-		for client := range client_connections {
-			err := client.WriteJSON(msg)
-			if err != nil {
-				log.Printf("error: %v", err)
-				client.Close()
-				delete(client_connections, client)
+		for conn_id, conn := range client_connections {
+			if msg.RoomId == conn_id {
+				err := conn.WriteJSON(msg)
+				if err != nil {
+					log.Printf("error: %v", err)
+					conn.Close()
+					delete(client_connections, conn_id)
+				}
 			}
 		}
 	}
